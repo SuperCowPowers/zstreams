@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+
+"""Read Kafka Streams and Print out the messages"""
+import sys
+import argparse
+from confluent_kafka.admin import AdminClient, ConfigResource, RESOURCE_TOPIC
+
+
+class KafkaMetaInfo:
+    """A class that gives meta information about Kafka topics, partitions, and activity stats"""
+
+    def __init__(self, bootstrap_servers):
+        """KafkaMetaInfo Initialization"""
+        self.servers = bootstrap_servers
+        self.conf = {'bootstrap.servers': self.servers}
+
+        # TODO: We should capture connection errors/timeouts here
+        self.admin = AdminClient(self.conf)
+        self.cluster_meta = self.admin.list_topics()
+
+    def get_raw_info(self):
+        """Return a raw dictionary of all the known Kafka cluster info"""
+        _info = {
+            'cluster_id': self.cluster_meta.cluster_id,
+            'controller_id': self.cluster_meta.controller_id,
+            'brokers': self.get_brokers(),
+            'topics': self.get_topics()
+        }
+        return _info
+
+    def print_info(self, all_topics=False):
+        """Print out all the information about this Kafka Cluster"""
+        print('Cluster ID: {:s}'.format(self.cluster_meta.cluster_id))
+        self.print_brokers()
+        self.print_topics(all_topics)
+
+    def get_brokers(self):
+        """Return the meta data for all Brokers"""
+        return self.cluster_meta.brokers
+
+    def print_brokers(self):
+        """Print out information about the Kafka Brokers"""
+        _brokers = self.get_brokers()
+        print('{:d} Broker(s)'.format(len(_brokers)))
+        for b in _brokers.values():
+            if b.id == self.cluster_meta.controller_id:
+                print('\tid: {:d} host: {:s}/{:d} (Controller)'.format(b.id, b.host, b.port))
+            else:
+                print('\tid: {:d} host: {:s}/{:d}'.format(b.id, b.host, b.port))
+
+    def get_topics(self, all_topics):
+        """Get all the topics provided by this Kafka Cluster"""
+        _topics = self.cluster_meta.topics
+
+        # If they want ALL the topic just return
+        if all_topics:
+            return _topics.values()
+
+        # Remove the built-in offsets topic and return
+        normal_topics = [topic for topic in _topics.values() if not topic.topic.startswith('_')]
+        return normal_topics
+
+    def print_topics(self, all_topics=False):
+        """Print all the topics"""
+        topics = self.get_topics(all_topics)
+        print('{:d} Topics'.format(len(topics)))
+        for topic in topics:
+            print('\t{:s} ({:d} partitions)'.format(topic.topic, len(topic.partitions)))
+            self.topic_config(topic)
+
+    def topic_config(self, topic):
+        """Configuration for the given topic"""
+        topic_config = self.admin.describe_configs([ConfigResource(RESOURCE_TOPIC, topic.topic)])
+        for topic, task in topic_config.items():
+            config_response = task.result()
+            # We're just going to look at some of the config
+            # Compression
+            print('\t\tcompression.type: ', config_response['compression.type'].value)
+            # Cleanup policy and retention time/bytes
+            print('\t\tcleanup.policy: ', config_response['cleanup.policy'].value)
+            print('\t\tretention.ms: ', config_response['retention.ms'].value,
+                  'Hours: {:.1f}'.format(int(config_response['retention.ms'].value) / 1000.0 / 3600.0))
+            print('\t\tretention.bytes: ', config_response['retention.bytes'].value,
+                  'MBytes: {:.1f}'.format(int(config_response['retention.bytes'].value) / 1000000.0))
+
+
+if __name__ == '__main__':
+    """Read Kafka Streams and Print out the messages"""
+
+    # Collect args from the command line
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--server', type=str, default='localhost:9092',
+                        help='Specify the Kafka Server (default: localhost:9092)')
+    parser.add_argument('--all-topics', action='store_true', help='List ALL topics')
+    args, commands = parser.parse_known_args()
+
+    # Check for unknown args
+    if commands:
+        print('Unrecognized args: %s' % commands)
+        sys.exit(1)
+
+    # Create the class and test out the methods
+    meta_info = KafkaMetaInfo(args.server)
+    meta_info.print_info(all_topics=args.all_topics)

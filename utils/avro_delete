@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Soft Delete
+curl -X DELETE http://localhost:8081/subjects/$1
+
+# Hard Delete
+curl -X DELETE http://localhost:8081/subjects/$1?permanent=true

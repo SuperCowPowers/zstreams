@@ -1,0 +1,88 @@
+#!/usr/bin/env python
+
+"""Create a Kafka Topic"""
+import sys
+import argparse
+from confluent_kafka.admin import AdminClient, NewTopic
+
+
+def create_topic(admin_client, topic_name):
+    """Creates the topic with the given topic name"""
+    futures = admin_client.create_topics(
+        [
+            NewTopic(
+                topic=topic_name,
+                num_partitions=1,
+                replication_factor=1,
+                config={
+                    'cleanup.policy': 'delete',
+                    'compression.type': 'producer',
+                    'retention.ms': 86400000,  # 24 hours
+                    'retention.bytes': -1,  # No Size Limit
+                },
+            )
+        ]
+    )
+
+    for topic, future in futures.items():
+        try:
+            future.result()
+            print("topic created")
+        except Exception as e:
+            print(f"failed to create topic {topic_name}: {e}")
+            raise
+
+
+if __name__ == '__main__':
+    """Create a Kafka Topic"""
+
+    # Collect args from the command line
+    parser = argparse.ArgumentParser()
+    parser.add_argument('topic', type=str,
+                        help='Specify the Kafka Topic to Create')
+    parser.add_argument('--server', type=str, default='localhost:9092',
+                        help='Specify the Kafka Server (default: localhost:9092)')
+    parser.add_argument('--delete', action='store_true', help='Add the flag to delete the topic')
+    args, commands = parser.parse_known_args()
+
+    # Check for unknown args
+    if commands:
+        print('Unrecognized args: %s' % commands)
+        sys.exit(1)
+
+    # Create a Kafka Admin Client
+    conf = {'bootstrap.servers': args.server}
+    admin_client = AdminClient(conf)
+
+    # Do they want to delete the topic?
+    DELETE = False
+    if args.delete:
+        DELETE = True
+
+    # Check if this topic already exists
+    new_topic = args.topic
+    TOPIC_EXISTS = False
+    topic_meta = admin_client.list_topics()
+    topics = [t.topic for t in topic_meta.topics.values()]
+    if new_topic in topics:
+        TOPIC_EXISTS = True
+
+    # Okay now some logic based on delete/exists
+    if DELETE:
+        if TOPIC_EXISTS:
+            print('Deleting Topic: {:s}...'.format(new_topic))
+            admin_client.delete_topics([new_topic])
+        else:
+            print('Topic {:s} does not exist. Exiting...'.format(new_topic))
+            sys.exit(1)
+
+    # Creating the topic
+    else:
+        if TOPIC_EXISTS:
+            print('Topic {:s} already exists. Exiting...'.format(new_topic))
+            sys.exit(0)
+
+        # Okay create the topic
+        else:
+            print('Creating Topic: {:s}...'.format(new_topic))
+            create_topic(admin_client, new_topic)

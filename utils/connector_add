@@ -1,0 +1,4 @@
+#!/bin/sh
+
+curl -sX POST http://localhost:8083/connectors \
+-d @$1 --header "Content-Type: application/json" | jq

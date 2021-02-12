@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+
+"""Register an Avro Schema with the Schema Registry"""
+from confluent_kafka.schema_registry import SchemaRegistryClient, Schema
+import argparse
+import json
+
+
+def register_schema(schema_filename, subject_name, registry):
+    """Register the schema"""
+    with open(schema_filename) as fp:
+        # This ensures valid json
+        schema_data = json.load(fp)
+        schema_str = json.dumps(schema_data)
+
+        # Connect to the registry
+        avro_schema = Schema(schema_str, 'AVRO')
+        sr = SchemaRegistryClient({'url': registry})  # Put auth stuff here
+
+        # Register schema
+        print('Registering schema as {:s}...'.format(subject_name))
+        schema_id = sr.register_schema(subject_name, avro_schema)
+        print('Schema registered with ID: {:d}'.format(schema_id))
+
+
+if __name__ == "__main__":
+    """Simple Avro Schema Consumer"""
+    import sys
+    parser = argparse.ArgumentParser()
+    parser.add_argument('schema_file', help='Specify the file to load')
+    parser.add_argument('subject_name', help='Specify the subject_name for the schema')
+    parser.add_argument('--registry', type=str, default='http://localhost:8081',
+                        help='Specify the Schema Registry (default: http://localhost:8081)')
+    args, commands = parser.parse_known_args()
+
+    # Check for unknown args
+    if commands:
+        print('Unrecognized args: %s' % commands)
+        sys.exit(1)
+
+    # Register the Schema
+    register_schema(args.schema_file, args.subject_name, args.registry)
