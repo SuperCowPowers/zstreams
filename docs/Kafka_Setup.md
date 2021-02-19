@@ -12,7 +12,14 @@ When you use **zkg** to install the plugin you definitely need the `-version mas
 
 
 ```
- zkg install apache/metron-bro-plugin-kafka --version master
+$ zkg install apache/metron-bro-plugin-kafka --version master
+```
+
+You can verify install with 
+
+```
+$ zeek -N Apache::Kafka
+$ zkg list
 ```
 
 ### Kafka Plugin Configuration
@@ -23,7 +30,7 @@ You can setup your Kafka Configuration in different ways but you must have a **s
 Here's a shortcut config to have each log create its own topic.
 
 ```
-@load packages/metron-bro-plugin-kafka/Apache/Kafka
+@load packages/metron-bro-plugin-kafka
 redef Kafka::topic_name = "";
 redef Kafka::send_all_active_logs = T;
 redef Kafka::kafka_conf = table(
