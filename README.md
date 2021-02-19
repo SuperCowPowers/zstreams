@@ -20,7 +20,7 @@ ZStreams helps you analyze Zeek data with the latest streaming toolkits. With ZS
 
 
 ## Examples
-Welcome to the examples, before getting let's make sure that everything is setup and ready to go: [Ready Check, All Systems Go?](./docs/Ready_Check.md)
+Welcome to the examples, before getting started let's make sure that everything is setup and ready to go: [Ready Check, All Systems Go?](./docs/Ready_Check.md)
 
 ### Hello World
 - (1)
